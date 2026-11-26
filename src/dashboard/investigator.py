@@ -7,6 +7,7 @@ import streamlit as st
 from .artifacts import ArtifactError, explain_case, generation_commands
 from .logic import ID, demo_cases, outcome, parse_id
 from .ui import BLUE, PRIORITY_COLORS, RED, chart_layout, count, decimal, hero, percent, plot
+from .v2_results import investigation as render_v2
 
 
 def _input_key(mode, partition):
@@ -163,6 +164,7 @@ def render(run, partition):
     _show_assessment(run, partition, row)
     _show_history(row)
     _show_shap(run, partition, case)
+    render_v2(run, partition, selected)
     st.subheader("Observed outcome")
     if st.button("Reveal Ground Truth", key="reveal_truth"):
         st.session_state["revealed_case"] = case

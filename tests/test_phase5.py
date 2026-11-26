@@ -1,6 +1,7 @@
 """Round-trip saved artifacts and exercise the finished live-view components."""
 
 import json
+import os
 from pathlib import Path
 
 import joblib
@@ -15,6 +16,7 @@ from src.data_loader import TRANSACTION_DTYPES
 from src.training_data import load_partition, read_phase1_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
+V1_ARTIFACTS = Path(os.environ.get("FRAUDLENS_ARTIFACTS", ROOT / "artifacts"))
 
 
 def test_phase5_round_trip_reads_only_training_and_validation(tmp_path, monkeypatch):
@@ -59,7 +61,7 @@ def test_phase5_round_trip_reads_only_training_and_validation(tmp_path, monkeypa
 
 
 def test_phase5_missing_or_incompatible_does_not_block_existing_pages(tmp_path):
-    original = ROOT / "artifacts" / "quick"
+    original = V1_ARTIFACTS / "quick"
     if not (original / "phase3" / "manifest.json").is_file():
         pytest.skip("Generate the Git-ignored quick artifacts to run manifest integration checks.")
     mode = tmp_path / "quick"
@@ -80,7 +82,7 @@ def test_phase5_missing_or_incompatible_does_not_block_existing_pages(tmp_path):
 
 
 def test_real_artifacts_render_phase5_charts_profiles_and_rule_search():
-    root = ROOT / "artifacts"
+    root = V1_ARTIFACTS
     if not (root / "quick" / "phase5" / "manifest.json").is_file():
         pytest.skip("Generate Phase 5 quick artifacts to run real dashboard checks.")
     run = DashboardRun(root, "quick")

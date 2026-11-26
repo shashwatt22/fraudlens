@@ -1,0 +1,2 @@
+# Keep scoring-code bytes stable for the manifest SHA-256 checks.
+src/v2/*.py text eol=lf

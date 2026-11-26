@@ -1,6 +1,7 @@
 """Matched pipeline lineage, checkpoint freezing, and dashboard rendering."""
 
 import json
+import os
 from pathlib import Path
 
 import joblib
@@ -17,6 +18,7 @@ from src.scratch_neural import ScratchNetwork
 from src.training_data import load_partition, read_phase1_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
+V1_ARTIFACTS = Path(os.environ.get("FRAUDLENS_ARTIFACTS", ROOT / "artifacts"))
 
 
 def test_sample_fit_and_freeze_then_save_matched_results(tmp_path, monkeypatch):
@@ -85,7 +87,7 @@ def test_sample_fit_and_freeze_then_save_matched_results(tmp_path, monkeypatch):
 
 
 def test_real_syllabus_views_load_both_matched_report_types():
-    root = ROOT / "artifacts"
+    root = V1_ARTIFACTS
     if not (root / "quick" / "phase6" / "manifest.json").is_file():
         pytest.skip("Generate the Phase 6 quick artifacts for live dashboard integration tests.")
     run = DashboardRun(root, "quick")

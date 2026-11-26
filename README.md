@@ -2,20 +2,27 @@
 
 **Financial Fraud & Behavioral Risk Intelligence**
 
-![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB) ![Scikit-learn](https://img.shields.io/badge/scikit--learn-classical%20ML-F7931E) ![XGBoost](https://img.shields.io/badge/XGBoost-gradient%20boosting-1769AA) ![PyTorch](https://img.shields.io/badge/PyTorch-CPU-EE4C2C) ![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B) ![NumPy](https://img.shields.io/badge/NumPy-from%20scratch-4D77CF) ![84 verified passing tests](https://img.shields.io/badge/Verified%20tests-84%20passed-238636)
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB) ![Scikit-learn](https://img.shields.io/badge/scikit--learn-classical%20ML-F7931E) ![XGBoost](https://img.shields.io/badge/XGBoost-gradient%20boosting-1769AA) ![PyTorch](https://img.shields.io/badge/PyTorch-CPU-EE4C2C) ![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B) ![NumPy](https://img.shields.io/badge/NumPy-from%20scratch-4D77CF) ![93 verified passing tests](https://img.shields.io/badge/Verified%20tests-93%20passed-238636)
 
-FraudLens is a local investigation workbench for ranking and explaining suspicious financial transactions. It builds strictly historical card-and-address features, evaluates classical and neural models on a later holdout, and turns saved predictions into a review queue with on-demand TreeSHAP. The dashboard lets an analyst inspect the evidence behind a score and explore how a threshold changes the review workload.
+FraudLens ranks suspicious financial transactions for human review. V2 compares boosted trees, classical classifiers and neural networks on expanding chronological folds, then freezes an ensemble and review cutoff. The four-page Streamlit dashboard compares V1 and V2, ranks saved scores and computes TreeSHAP for the ensemble’s XGBoost component.
 
-[Dashboard](#dashboard) · [Architecture](#architecture) · [Results](#final-holdout-results) · [NumPy implementation](#neural-networks-from-scratch) · [Reproduce](#reproduce-on-windows)
+[Dashboard](#dashboard) · [Architecture](#architecture) · [V2 results](#v2-results) · [V1 results](#v1-holdout-reference) · [Reproduce](#reproduce-on-windows)
 
-| Evaluation scale | Engineering measurements | Final XGBoost |
-| :--- | :--- | :--- |
-| **590,540** transactions processed | **433.16 s** full pipeline | **0.79714** ROC-AUC |
-| **118,108** final holdout transactions | **1.23 GiB** peak pipeline working set | **0.18778** average precision |
-| **51,201** trainable MLP parameters | **≈3 s** to first dashboard render | **84** tests passed with verified artifacts |
-| **4** interactive dashboard pages | **6** CPU training threads | |
+## V2 results
 
-Measurements are from the verified Windows run with Python 3.11.8, an Intel Core i5-12450H, 15.7 GiB RAM and six training threads. Startup is the measured localhost render with artifacts already present.
+The V2 study ran **36 supervised configurations** on three expanding folds within the **472,432-row** V1 development period. The final comparison uses the same **118,108 later transactions** as V1, including 4,064 fraud cases. This is a reused retrospective holdout. V2 fitting, selection, calibration and threshold selection used earlier observations.
+
+| Model | Average precision | ROC-AUC | Precision | Recall | F1 | Accuracy | Specificity |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 XGBoost with history | 0.18778 | 0.79714 | 0.22920 | 0.34916 | 0.27674 | 0.93720 | 0.95816 |
+| V2 depth-8 XGBoost | 0.50316 | 0.89645 | 0.55970 | 0.46137 | 0.50580 | 0.96898 | 0.98707 |
+| **V2 weighted ensemble** | **0.51147** | **0.90325** | **0.62005** | **0.43529** | **0.51149** | **0.97139** | **0.99049** |
+
+The weighted ensemble reached **0.63425 mean development AP** and **0.66017 AP on the third fold**. It assigns 77.21875% of the score to depth-8 XGBoost and 7.59375% each to LightGBM, CatBoost and a regularized PyTorch MLP. At the frozen cutoff of `0.275293`, it identified 1,769 frauds, missed 2,295 and flagged 1,084 legitimate transactions. Its score is uncalibrated. The V2 artifact-backed test suite passed **93 tests** on Windows with Python 3.11.8 and CPU training.
+
+[All model results, ablations and operating points](docs/V2_EXPERIMENTS.md) · [V2 protocol](docs/V2_PROTOCOL.md) · [Verification record](docs/V2_COMPLETION.md)
+
+![Full-mode dashboard comparing the frozen V1 and V2 results](docs/screenshots/dashboard-v2-comparison.jpg)
 
 ## Why this problem is hard
 
@@ -34,52 +41,43 @@ Fraud accounts for about 3.5% of the processed transactions. A majority classifi
 
 | Page | What you can do |
 | :--- | :--- |
-| **Overview & Review Queue** | Compare aggregate activity by period. Rank by classifier score, anomaly or composite risk. Filter the review queue, export locally, and open a transaction in the Investigator. |
-| **Transaction Investigator** | Inspect strictly prior context and the frozen decision, compute signed TreeSHAP contributions on demand, and reveal the observed label after forming an assessment. |
-| **Model Lab** | Compare precision–recall and ROC curves, confusion matrices, learning curves and ablations. Explore a threshold on validation while final test results stay frozen. Inspect the matched benchmarks and NumPy checks. |
-| **Behavioral Intelligence & Patterns** | Explore training-reference anomalies, DBSCAN clusters in a PCA projection, Apriori rules evaluated on validation, and grouped global SHAP. |
+| **Overview & Review Queue** | Compare transaction activity, open a case, and inspect the V2 review ranking in Full / Final test. V1 classifier, anomaly and composite rankings remain available. |
+| **Transaction Investigator** | Inspect strictly prior context and the frozen decision. V2 explains the XGBoost component’s raw margin with TreeSHAP. Reveal the observed label after reviewing the case. |
+| **Model Lab** | Compare V1 and V2 metrics, the accepted V2 model progression, precision–recall and calibration. Explore V1 validation thresholds, ablations, learning curves and matched benchmarks. |
+| **Behavioral Intelligence & Patterns** | Compare V2 anomaly ranking, DBSCAN stability and Apriori experiments. Inspect V1 training-reference profiles and grouped TreeSHAP. [V2 dashboard capture](docs/screenshots/dashboard-v2-patterns.jpg) |
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Data[Data preparation]
-        TX[IEEE-CIS transactions] --> JOIN[Schema checks and one-to-one left join]
-        ID[IEEE-CIS identity] --> JOIN
-        JOIN --> HIST[Strictly prior historical features]
-        HIST --> SPLIT[Chronological train, validation and final test]
-    end
-
-    subgraph Offline[Offline fitting and evaluation]
-        SPLIT --> PREP[Training-only preprocessing]
-        PREP --> CORE[Classical classifiers and XGBoost ablation]
-        PREP --> MLP[PyTorch MLP]
-        SPLIT --> LAB[Bounded matched subsets]
-        LAB --> MATCH[Supplementary classifiers]
-        LAB --> NPY[NumPy linear and ReLU networks]
-        CORE --> GATE[Freeze validation choices and release holdout]
-        MLP --> GATE
-        MATCH --> GATE
-        NPY --> GATE
-        SPLIT --> IF[Training-only Isolation Forest and reference]
-        CORE --> SHAP[Exact TreeSHAP for XGBoost]
-        IF --> RISK[Fixed 80 to 20 risk engine]
-        CORE --> RISK
-        SHAP --> GATE
-        RISK --> GATE
-        SPLIT --> PAT[Training-only DBSCAN and PCA, Apriori]
-        PAT --> GATE
-        GATE --> ART[Versioned manifests and saved evaluation artifacts]
-    end
-
-    ART --> UI[Read-only Streamlit dashboard]
+    TX[IEEE-CIS transaction and identity CSVs] --> JOIN[Validated identity left join]
+    JOIN --> SPLIT[Three chronological partitions]
+    SPLIT --> V1[V1 models and behavioral risk baseline]
+    V1 --> SAVE1[V1 versioned local artifacts]
+    SPLIT --> DEV[472432 V1 train and validation rows]
+    DEV --> FEAT[Expanded fields and strictly prior behavioral features]
+    FEAT --> FOLDS[Three expanding validation folds]
+    FOLDS --> FIT[XGBoost, LightGBM, CatBoost, classical models and neural networks]
+    FOLDS --> PAT[Isolation Forest, DBSCAN and Apriori experiments]
+    FIT --> FREEZE[Freeze ensemble, calibration choice and cutoff]
+    DEV --> POLICY[Separate chronological decision block]
+    POLICY --> FREEZE
+    SPLIT --> HOLD[118108 reused retrospective holdout rows]
+    HOLD --> EVAL[One frozen retrospective comparison]
+    FREEZE --> EVAL
+    EVAL --> SAVE2[V2 versioned local artifacts]
+    PAT --> SAVE2
+    FIT --> SHAP[TreeSHAP for the XGBoost component]
+    SAVE1 --> APP[Four-page Streamlit dashboard]
+    SAVE2 --> APP
+    SHAP --> APP
 ```
 
-Offline jobs fit models, select checkpoints and thresholds on validation, and persist the scorer, preprocessing and evaluation artifacts. The dashboard reads the selected run's compatible artifacts. Interactive work uses saved scores for threshold scenarios and reloads the fitted XGBoost model for individual TreeSHAP explanations.
+Offline stages build the feature cache, fit and compare models, and save the frozen policy and score artifacts. The dashboard checks the V1/V2 artifact lineage and reads compatible saved results. It reloads the fitted XGBoost component locally when requested for a V2 case explanation.
 
 ## Data and evaluation protocol
 
-The source is the IEEE-CIS Fraud Detection dataset hosted by Kaggle. The raw transaction and identity files have **590,540 × 394** and **144,233 × 41** dimensions respectively. The loader selects 15 and 3 columns and preserves every transaction with a validated identity left join. The joined feature table has 27 columns. [IEEE-CIS dataset](https://www.kaggle.com/competitions/ieee-fraud-detection/data) · [Competition rules](https://www.kaggle.com/competitions/ieee-fraud-detection/rules)
+The source is the IEEE-CIS Fraud Detection dataset hosted by Kaggle. The raw transaction and identity files have **590,540 × 394** and **144,233 × 41** dimensions respectively. The V1 loader selects 15 and 3 columns and preserves every transaction with a validated identity left join. The joined feature table has 27 columns. [IEEE-CIS dataset](https://www.kaggle.com/competitions/ieee-fraud-detection/data) · [Competition rules](https://www.kaggle.com/competitions/ieee-fraud-detection/rules)
 
 | Partition | Transactions | Fraud cases | Fraud rate |
 | :--- | ---: | ---: | ---: |
@@ -87,7 +85,7 @@ The source is the IEEE-CIS Fraud Detection dataset hosted by Kaggle. The raw tra
 | Validation | 118,108 | 4,611 | 3.9041% |
 | Final test | 118,108 | 4,064 | 3.4409% |
 
-The entity proxy combines `card1`, `card2`, `addr1` and `addr2`. For a transaction at time *t*, every history calculation uses transactions strictly before *t*. Equal-timestamp transactions share the same eligible history. Split boundaries preserve whole timestamp groups, and incomplete entity keys receive a cold start.
+The original V1 entity proxy combines `card1`, `card2`, `addr1` and `addr2`. For a transaction at time *t*, every history calculation uses transactions strictly before *t*. Equal-timestamp transactions share the same eligible history. Split boundaries preserve whole timestamp groups, and incomplete entity keys receive a cold start.
 
 | Historical feature | Calculation |
 | :--- | :--- |
@@ -99,11 +97,13 @@ The entity proxy combines `card1`, `card2`, `addr1` and `addr2`. For a transacti
 | `prior_count_24h` | Prior transactions in `[t − 86,400, t)` |
 | `is_new_product` | 1 when this known product category has no earlier observation for the proxy |
 
-Training fits median imputation, missing-value indicators, numeric standardization and capped one-hot encoding with missing and unseen-category handling. Supported classifiers use balanced weights or the training negative-to-positive ratio. The MLP uses that ratio as the positive-class weight in its logit loss. IDs and entity keys stay out of model inputs.
+V1 training fits median imputation, missing-value indicators, numeric standardization and capped one-hot encoding with missing and unseen-category handling. Supported classifiers use balanced weights or the training negative-to-positive ratio. The MLP uses that ratio as the positive-class weight in its logit loss. IDs and entity keys stay out of model inputs.
 
-The full pipeline freezes fits and validation choices before it opens the final holdout for evaluation. Validation selects checkpoints and maximizes F1 for decision thresholds. Quick mode uses 100,000 early transactions, with **zero overlapping IDs** and an earlier end timestamp than the final holdout. [Frozen experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
+The full pipeline freezes fits and validation choices before it opens the final holdout for evaluation. Validation selects checkpoints and maximizes F1 for decision thresholds. Quick mode uses 100,000 early transactions, with **zero overlapping IDs** and an earlier end timestamp than the final holdout. [Frozen V1 experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
 
-## Final holdout results
+V2 combines 431 source predictors, an identity-match indicator and seven V1 historical predictors. It adds 58 row-local or strictly historical features for 497 features in the advanced matrix. The final 47,244 development rows are reserved for calibration and the decision policy. Categorical vocabulary and fitted transformations are learned from the applicable training rows. The real-world availability of anonymized source fields is unverified. [V2 protocol](docs/V2_PROTOCOL.md)
+
+## V1 holdout reference
 
 AP is average precision. ROC-AUC, precision, recall and F1 below come from the full final holdout. Precision is undefined for the dummy model because it predicted no positive labels.
 
@@ -167,11 +167,11 @@ git clone https://github.com/shashwatt22/fraudlens.git
 Set-Location fraudlens
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.14.1+cpu
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-v2.txt
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-### 2. Obtain the authorized data and build artifacts
+### 2. Obtain the authorized data and build the V1 reference
 
 Obtain `train_transaction.csv` and `train_identity.csv` from Kaggle if you have authorized access under the competition rules. Place both in `data/raw/`. The evaluation holdout comes from the labeled transaction file. Data and runtime artifacts are obtained or generated locally. [Data download and access requirements](https://www.kaggle.com/competitions/ieee-fraud-detection/data)
 
@@ -183,14 +183,33 @@ Obtain `train_transaction.csv` and `train_identity.csv` from Kaggle if you have 
 
 Quick mode must precede full mode in the same artifact root. To reproduce with a fresh directory, add `--artifact-root artifacts/reproduction` to all three commands and set `$env:FRAUDLENS_ARTIFACTS = 'artifacts/reproduction'` for the app. Keep the original quick and full folders together for lineage verification. The full runner guards against reopening an already released directory.
 
-### 3. Test and launch
+### 3. Run the V2 stages
+
+From the clone root, use the V1 `full` artifact directory created above. Use the same V2 output path across stages. Training stages resume at saved fold checkpoints. `finalize` freezes the policy, and `evaluate` runs once for that output directory.
+
+```powershell
+$v2 = @{
+    Python = (Resolve-Path '.venv\Scripts\python.exe').Path
+    RawData = (Resolve-Path 'data\raw').Path
+    V1Artifacts = (Resolve-Path 'artifacts\full').Path
+    OutputRoot = 'artifacts/v2'
+    Threads = 6
+}
+foreach ($stage in 'baseline', 'boosting', 'matched', 'patterns', 'finalize', 'evaluate') {
+    & .\scripts\run_v2.ps1 @v2 -Stage $stage
+}
+```
+
+To reuse existing authorized local V1 artifacts, point `V1Artifacts` at their `full` directory and set `FRAUDLENS_ARTIFACTS` to its parent. For a separate V2 reproduction, choose a new `OutputRoot` and set `FRAUDLENS_V2_ARTIFACTS` to that directory before launching the dashboard. [V2 reproduction details](docs/V2_EXPERIMENTS.md#reproduction-and-checkpoints)
+
+### 4. Test and launch
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-Open `http://127.0.0.1:8501`. The sidebar selects Quick or Full and defaults to Full when the required artifacts agree. The artifact-backed dashboard requires a locally generated run. The original artifact-backed suite passed all 84 tests. The source-only release check passed 77 tests and skipped seven checks that need real artifacts. For the full integration suite, use the default `artifacts/` root.
+Open `http://127.0.0.1:8501`. The sidebar selects Quick or Full and defaults to Full when the required artifacts agree. The artifact-backed dashboard requires a locally generated run. Select **Full** and **Final test** for the V2 panels. The V2 suite passed all 93 tests with the original V1 artifacts available. Seven integration tests need real V1 artifacts. They use `artifacts/` by default or the directory in `FRAUDLENS_ARTIFACTS`.
 
 ## Engineering and verification
 
@@ -211,16 +230,19 @@ fraudlens/
 │   ├── phase6.py              Matched supplementary experiments
 │   ├── pipeline.py            Reproduction and holdout release gate
 │   ├── verify_full.py         Artifact and model reload audit
-│   └── dashboard/             Four interactive views
+│   ├── v2/                    Rich features, temporal experiments and freeze gate
+│   └── dashboard/             Four interactive views with V1 and V2 results
+├── scripts/run_v2.ps1         Resumable V2 stages
 ├── tests/                     Synthetic and artifact-backed tests
 ├── docs/                      Protocol, results and aggregate screenshots
-└── requirements.txt           Pinned dependencies
+├── requirements.txt          Pinned core dependencies
+└── requirements-v2.txt       V2 boosting dependencies
 ```
 
 | Area | Technology |
 | :--- | :--- |
 | Language and data processing | Python 3.11, pandas, NumPy, SciPy, PyArrow |
-| Classical and unsupervised ML | scikit-learn, XGBoost, MLxtend |
+| Classical and unsupervised ML | scikit-learn, XGBoost, LightGBM, CatBoost, MLxtend |
 | Deep learning and explainability | PyTorch CPU, NumPy, SHAP |
 | Visualization | Streamlit, Plotly |
 | Testing and artifacts | pytest, Streamlit AppTest, Parquet, JSON manifests, joblib, PyTorch state dictionaries and NumPy checkpoints |
@@ -229,8 +251,12 @@ The suite covers historical leakage, equal-timestamp boundaries, training-only p
 
 ## Scope and limitations
 
-The benchmark uses one historical data source with missing identity information and an approximate entity proxy. Temporal generalization outside this holdout is unverified. The measured precision and recall leave significant review errors, and neither score is calibrated. Clusters and association rules are exploratory, and the supplementary benchmark uses bounded matched samples. Verification used Windows and the recorded Python environment. This project is an educational prototype.
+The benchmark uses one historical data source with missing identity information and an approximate entity proxy. The V2 comparison reuses the V1 holdout. Generalization to an independent dataset and the serving-time availability of anonymized fields are unverified. The frozen decision leaves significant review errors, and the ensemble score is uncalibrated. Clusters and association rules are exploratory, and the supplementary benchmark uses bounded matched samples. Verification used Windows and the recorded Python environment. This project is an educational prototype.
 
-## Authors and data attribution
+## Dataset and licensing
 
-Project development is attributed to `shashwatt22` in the project history. AI-assisted tooling supported development and documentation. IEEE Computational Intelligence Society sponsored the source competition, and Kaggle hosts the dataset and rules. The dataset, checkpoints, individual predictions and transaction-level captures stay local. Follow the competition terms for any use or redistribution. [IEEE-CIS Fraud Detection](https://www.kaggle.com/competitions/ieee-fraud-detection/overview) · [Competition rules](https://www.kaggle.com/competitions/ieee-fraud-detection/rules)
+FraudLens uses the IEEE-CIS Fraud Detection dataset, provided by IEEE-CIS and Vesta through Kaggle, for non-commercial academic research and education. Obtain the dataset directly from Kaggle under its terms and competition rules. The dataset and trained models are excluded from this repository. [IEEE-CIS Fraud Detection dataset](https://www.kaggle.com/competitions/ieee-fraud-detection/data) · [Competition rules](https://www.kaggle.com/competitions/ieee-fraud-detection/rules)
+
+The MIT License covers the original FraudLens source code. The dataset, trained model artifacts and third-party components are outside its scope. Third-party components retain their own licenses. [MIT License](LICENSE)
+
+FraudLens is developed by `shashwatt22`. AI-assisted tooling supported development and documentation.

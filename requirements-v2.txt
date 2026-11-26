@@ -1,0 +1,5 @@
+# Install only these additions in the isolated V2 environment if V1 is already installed.
+lightgbm==4.7.0
+catboost==1.2.10
+graphviz==0.21
+six==1.17.0

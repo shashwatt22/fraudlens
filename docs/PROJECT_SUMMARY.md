@@ -1,6 +1,12 @@
 # FraudLens project summary
 
-## Objective and scope
+## V2 run
+
+The frozen V2 champion, `ensemble_weighted`, achieved **0.51147 AP**, **0.90325 ROC-AUC**, and **0.51149 F1** across the same 118,108 later transactions. Its frozen policy measured 62.00% precision and 43.53% recall. The later transactions were already evaluated in V1 and are a reused retrospective holdout. V2 selected models, calibration and the cutoff on earlier data.
+
+[Full temporal validation and retrospective results](V2_EXPERIMENTS.md)
+
+## V1 objective and scope
 
 FraudLens measures whether statistical behavior derived from an approximate entity's prior transactions improves fraud discrimination and review prioritization. It implements offline data engineering and evaluation, eight matched supplementary classifiers, two NumPy networks, a two-hidden-layer PyTorch benchmark, anomaly detection, exact TreeSHAP, and exploratory clustering and rules. The four-page dashboard reads local artifacts and computes validation threshold scenarios and local explanations on demand.
 

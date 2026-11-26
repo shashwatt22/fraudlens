@@ -1,6 +1,7 @@
 """Dashboard utilities and real-artifact Streamlit interaction smoke checks."""
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +14,8 @@ from src.dashboard.logic import demo_cases, outcome, parse_id, review_rows, thre
 from src.dashboard.ui import histogram
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_DIR = ROOT / "artifacts" / "quick"
+V1_ARTIFACTS = Path(os.environ.get("FRAUDLENS_ARTIFACTS", ROOT / "artifacts"))
+RUN_DIR = V1_ARTIFACTS / "quick"
 
 
 def _app():

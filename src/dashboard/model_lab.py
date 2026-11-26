@@ -10,6 +10,7 @@ import streamlit as st
 from .logic import CORE_MODELS, MODEL_NAMES, TARGET, threshold_metrics
 from .syllabus import render_syllabus
 from .ui import AMBER, BLUE, SLATE, TEAL, chart_layout, decimal, hero, percent, plot
+from .v2_results import model_lab as render_v2
 
 METRICS = {"average_precision": "Average precision", "roc_auc": "ROC-AUC", "precision": "Precision",
            "recall": "Recall", "specificity": "Specificity", "f1": "F1", "accuracy": "Accuracy"}
@@ -227,6 +228,7 @@ def render(run, partition):
     first, second, third, fourth, fifth = st.tabs(["Model comparison", "Evaluation lab", "Deep learning", "Behavioral ablation", "Risk ranking"])
     with first:
         _comparison(run, partition, metrics)
+        render_v2(run, partition)
     with second:
         _evaluation(run, partition, metrics)
     with third:

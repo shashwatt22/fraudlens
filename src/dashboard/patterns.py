@@ -8,6 +8,7 @@ import streamlit as st
 from .artifacts import ArtifactError, generation_commands
 from .discovery import association_view, cluster_view
 from .ui import BLUE, TEAL, chart_layout, hero, histogram, plot
+from .v2_results import patterns as render_v2
 
 
 def _anomaly(run, partition):
@@ -78,3 +79,4 @@ def render(run, partition):
         _discovery(run, association_view)
     with explainability:
         _explainability(run)
+    render_v2(run, partition)

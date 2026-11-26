@@ -8,6 +8,7 @@ import streamlit as st
 from .investigator import select_case
 from .logic import CORE_MODELS, ID, MODEL_NAMES, RANK_COLUMNS, TIME, parse_id, review_rows
 from .ui import AMBER, BLUE, PRIORITY_COLORS, RED, SLATE, TEAL, chart_layout, hero, histogram, percent, plot
+from .v2_results import review_queue as render_v2
 
 
 def _activity(run, risk, partition):
@@ -136,3 +137,4 @@ def render(run, partition):
         _activity(run, risk, partition)
     with queue:
         _queue(run, risk, partition)
+        render_v2(run, partition, select_case)
