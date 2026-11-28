@@ -93,7 +93,7 @@ def test_real_syllabus_views_load_both_matched_report_types():
     run = DashboardRun(root, "quick")
     run.require_optional(6)
     manifest = run.manifests[6]
-    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=40)
+    app = AppTest.from_file(str(ROOT / "archive" / "apps" / "app_legacy.py"), default_timeout=40)
     app.session_state["dataset_mode"] = "quick"
     app.run()
     app.radio(key="navigation").set_value("Model Lab").run()

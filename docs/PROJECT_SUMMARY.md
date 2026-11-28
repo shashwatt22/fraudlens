@@ -1,5 +1,7 @@
 # FraudLens project summary
 
+This record describes the archived V1 project. See the [final project reference](FINAL_PROJECT_REFERENCE.md) for the V3 submission.
+
 ## V2 run
 
 The frozen V2 champion, `ensemble_weighted`, achieved **0.51147 AP**, **0.90325 ROC-AUC**, and **0.51149 F1** across the same 118,108 later transactions. Its frozen policy measured 62.00% precision and 43.53% recall. The later transactions were already evaluated in V1 and are a reused retrospective holdout. V2 selected models, calibration and the cutoff on earlier data.

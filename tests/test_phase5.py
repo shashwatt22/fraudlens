@@ -88,7 +88,7 @@ def test_real_artifacts_render_phase5_charts_profiles_and_rule_search():
     run = DashboardRun(root, "quick")
     clusters = run.report(5, "clustering")
     rules = run.report(5, "association")["rules"]
-    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=40)
+    app = AppTest.from_file(str(ROOT / "archive" / "apps" / "app_legacy.py"), default_timeout=40)
     app.session_state["dataset_mode"] = "quick"
     app.run()
     app.radio(key="navigation").set_value("Behavioral Intelligence & Patterns").run()

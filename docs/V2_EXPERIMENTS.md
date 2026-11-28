@@ -231,6 +231,28 @@ The frozen V2 cutoff produced 112,960 true negatives, 1,084 false positives, 2,2
 
 Use Python 3.11 and the local V1 requirements plus `requirements-v2.txt`. Start with `python -m src.v2.experiment --help` and `python -m src.v2.challengers --help`. Both training entry points resume completed fold checkpoints. `src.v2.patterns` produces the unsupervised report and `src.v2.validation_report` rebuilds the selection ledger. `src.v2.final prepare` verifies completeness and freezes the decision policy. `src.v2.final evaluate` uses the frozen policy and an exclusive receipt before it opens retrospective labels. Keep the V1 source artifacts read-only.
 
-Follow the [Windows reproduction instructions](../README.md#reproduce-on-windows) to install the pinned dependencies, generate or locate the V1 reference artifacts and run V2. The V2 output root stores only local experiment files. Reuse it to resume a training stage and use a separate root for an independent reproduction.
+Run from the V2 checkout. These commands use the original environment for V1 dependencies and install the extra packages into the V2 checkout. Choose a new output directory for an independent reproduction.
 
-After training the boosting candidates, the anonymized-feature probe can be regenerated on development data with `python -m src.v2.audit --output artifacts/v2`. Use the activated project environment or its Python executable.
+```powershell
+$python = 'E:\fraudlens\.venv\Scripts\python.exe'
+& $python -m pip install --target '.venv\Lib\site-packages' -r requirements-v2.txt
+$env:PYTHONPATH = (Join-Path $PWD '.venv\Lib\site-packages')
+$env:FRAUDLENS_ARTIFACTS = 'E:\fraudlens\artifacts'
+$env:FRAUDLENS_V2_ARTIFACTS = (Join-Path $PWD 'artifacts\v2-reproduction')
+
+$run = @{
+    Python = $python
+    RawData = 'E:\fraudlens\data\raw'
+    V1Artifacts = 'E:\fraudlens\artifacts\full'
+    OutputRoot = $env:FRAUDLENS_V2_ARTIFACTS
+    Threads = 6
+}
+foreach ($stage in 'baseline', 'boosting', 'matched', 'patterns', 'finalize', 'evaluate') {
+    & .\scripts\run_v2.ps1 @run -Stage $stage
+}
+& $python -m pip check
+& $python -m pytest -q
+& $python -m streamlit run app.py
+```
+
+To open the existing measured run, set `FRAUDLENS_V2_ARTIFACTS` to `E:\fraudlens-v2\artifacts\v2` and launch Streamlit. Select **Full** and **Final test**.

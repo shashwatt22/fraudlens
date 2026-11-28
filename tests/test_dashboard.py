@@ -19,7 +19,7 @@ RUN_DIR = V1_ARTIFACTS / "quick"
 
 
 def _app():
-    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=40)
+    app = AppTest.from_file(str(ROOT / "archive" / "apps" / "app_legacy.py"), default_timeout=40)
     app.session_state["dataset_mode"] = "quick"
     return app
 
@@ -93,7 +93,7 @@ def test_complete_full_artifacts_are_the_default_and_quick_is_selectable(quick_a
     root = RUN_DIR.parent
     if not (root / "full" / "pipeline_summary.json").is_file():
         pytest.skip("Generate the full artifacts to run this dashboard integration check.")
-    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=40).run()
+    app = AppTest.from_file(str(ROOT / "archive" / "apps" / "app_legacy.py"), default_timeout=40).run()
     _clean(app)
     assert app.selectbox(key="dataset_mode").value == "full"
     assert _metric(app, "Processed transactions") == "590,540"
